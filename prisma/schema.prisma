@@ -1,0 +1,150 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User Model - Photographers
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  firstName String
+  lastName  String
+  company   String?
+  phone     String?
+  address   String?
+  city      String?
+  country   String?
+  
+  orders    Order[]
+  uploads   FileUpload[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Album Model - Album types/models
+model AlbumModel {
+  id          String   @id @default(cuid())
+  name        String   // e.g., "Cilt Albüm"
+  description String?
+  size        String   // e.g., "20x30 cm"
+  basePrice   Float
+  
+  categoryOptions AlbumCategory[]
+  orders          Order[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Category Model - Album categories like "Tual", "Tablo", "Poster"
+model AlbumCategory {
+  id          String   @id @default(cuid())
+  name        String   // e.g., "Tual", "Tablo", "Poster"
+  priceModifier Float  @default(0) // Additional price
+  
+  albumModel  AlbumModel @relation(fields: [albumModelId], references: [id], onDelete: Cascade)
+  albumModelId String
+  
+  orderItems OrderItem[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Order Model
+model Order {
+  id              String   @id @default(cuid())
+  orderNumber     String   @unique // Sequential order number
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+  
+  albumModel      AlbumModel @relation(fields: [albumModelId], references: [id])
+  albumModelId    String
+  
+  items           OrderItem[]
+  
+  totalPrice      Float
+  status          OrderStatus @default(PENDING) // PENDING, PROCESSING, SHIPPED, DELIVERED
+  
+  paymentMethod   PaymentMethod @default(COD) // COD = Cash on Delivery, ONLINE
+  paymentStatus   PaymentStatus @default(UNPAID)
+  
+  deliveryAddress String
+  notes           String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  deliveryDate    DateTime?
+}
+
+// Order Items (for tracking selected categories)
+model OrderItem {
+  id              String   @id @default(cuid())
+  
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId         String
+  
+  category        AlbumCategory @relation(fields: [categoryId], references: [id])
+  categoryId      String
+  
+  quantity        Int      @default(1)
+  price           Float
+  
+  createdAt       DateTime @default(now())
+}
+
+// File Upload Model
+model FileUpload {
+  id          String   @id @default(cuid())
+  
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId     String   @unique
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  
+  fileName    String
+  fileSize    Float    // in MB
+  fileUrl     String
+  uploadStatus UploadStatus @default(UPLOADING)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Enums
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+}
+
+enum PaymentMethod {
+  COD
+  ONLINE
+}
+
+enum UploadStatus {
+  UPLOADING
+  COMPLETED
+  FAILED
+  VERIFIED
+}
